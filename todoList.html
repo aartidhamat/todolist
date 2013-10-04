@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        color: #000;
+        font: 13px Verdana, san-serif;
+      }
+      
+      body a {
+        color: #386df2;
+        text-decoration: none;
+      }
+    </style>
+    <script>
+      var TodoListlist = {};
+      TodoListlist.webdb = {};
+      TodoListlist.webdb.db = null;
+      
+      TodoListlist.webdb.open = function() {
+        var dbSize = 5 * 1024 * 1024; // 5MB
+        TodoListlist.webdb.db = openDatabase("TodoList", "1.0", "TodoList manager", dbSize);
+      }
+      
+      TodoListlist.webdb.createTable = function() {
+        var db = TodoListlist.webdb.db;
+        db.transaction(function(tx) {
+          tx.executeSql("CREATE TABLE IF NOT EXISTS TodoList(ID INTEGER PRIMARY KEY ASC, TodoList TEXT, added_on DATETIME)", []);
+        });
+      }
+      
+      TodoListlist.webdb.addTodoList = function(TodoListText) {
+        var db = TodoListlist.webdb.db;
+        db.transaction(function(tx){
+          var addedOn = new Date();
+          tx.executeSql("INSERT INTO TodoList(TodoList, added_on) VALUES (?,?)",
+              [TodoListText, addedOn],
+              TodoListlist.webdb.onSuccess,
+              TodoListlist.webdb.onError);
+         });
+      }
+      
+      TodoListlist.webdb.onError = function(tx, e) {
+        alert("There has been an error: " + e.message);
+      }
+      
+      TodoListlist.webdb.onSuccess = function(tx, r) {
+        // re-render the data.
+        TodoListlist.webdb.getAllTodoListItems(loadTodoListItems);
+      }
+      
+      
+      TodoListlist.webdb.getAllTodoListItems = function(renderFunc) {
+        var db = TodoListlist.webdb.db;
+        db.transaction(function(tx) {
+          tx.executeSql("SELECT * FROM TodoList", [], renderFunc,
+              TodoListlist.webdb.onError);
+        });
+      }
+      
+      TodoListlist.webdb.deleteTodoList = function(id) {
+        var db = TodoListlist.webdb.db;
+        db.transaction(function(tx){
+          tx.executeSql("DELETE FROM TodoList WHERE ID=?", [id],
+              TodoListlist.webdb.onSuccess,
+              TodoListlist.webdb.onError);
+          });
+      }
+      
+      function loadTodoListItems(tx, rs) {
+        var rowOutput = "";
+        var TodoListItems = document.getElementById("TodoListItems");
+        for (var i=0; i < rs.rows.length; i++) {
+          rowOutput += renderTodoList(rs.rows.item(i));
+        }
+      
+        TodoListItems.innerHTML = rowOutput;
+      }
+      
+      function renderTodoList(row) {
+        return "<li>" + row.TodoList  + " [<a href='javascript:void(0);'  onclick='TodoListlist.webdb.deleteTodoList(" + row.ID +");'>Delete</a>]</li>";
+      }
+      
+      function init() {
+        TodoListlist.webdb.open();
+        TodoListlist.webdb.createTable();
+        TodoListlist.webdb.getAllTodoListItems(loadTodoListItems);
+      }
+      
+      function addTodoList() {
+        var TodoList = document.getElementById("TodoList");
+        TodoListlist.webdb.addTodoList(TodoList.value);
+        TodoList.value = "";
+      }
+    </script>
+  </head>
+  <body onLoad="init();">
+    <ul id="TodoListItems">
+    </ul>
+    <form type="post" onsubmit="addTodoList(); return false;">
+      <input type="text" id="TodoList" name="TodoList" placeholder="What do you need to do?" style="width: 200px;" />
+      <input type="submit" value="Add TodoList Item" />
+    </form>
+  </body>
+</html>​
